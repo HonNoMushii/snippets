@@ -1,0 +1,2 @@
+# snippets
+Handy allround code!
