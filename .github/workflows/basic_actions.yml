@@ -1,4 +1,4 @@
-name: Webscraper Toolkit CI
+name: basic_actions
 
 on:
   push:
