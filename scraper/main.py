@@ -1,20 +1,15 @@
-""" This script scrapes JSON data from a webpage using Selenium and BeautifulSoup.
-    It continuously polls the page for new data and saves it to a JSON file.
-"""
-
 import json
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 import time
-f
 
 # Set up Firefox options and specify binary & GeckoDriver paths
 options = Options()
 options.headless = False  # Set to False to see the browser
-options.binary_location = r"" # Path to your Firefox.exe
-service = Service(r"") # Path to your GeckoDriver.exe
+options.binary_location = r""
+service = Service(r"")
 
 driver = webdriver.Firefox(service=service, options=options)
 driver.get("https://www.funda.nl/detail/koop/den-haag/appartement-zodiakplein-69/43885981/")
@@ -26,25 +21,50 @@ unique_data_set = set()
 
 print("Starting continuous scraping. The browser will remain open until closed manually.")
 
-# Continuous loop that polls the page for new JSON data
 while driver.window_handles:
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
-    json_scripts = soup.find_all("script", type="application/ld+json")
     
+    # Create a dictionary to hold all data extracted in this iteration.
+    scraped_item = {}
+
+    # 1. Extract JSON-LD data from <script> tags
+    json_scripts = soup.find_all("script", type="application/ld+json")
+    json_ld_list = []
     for script in json_scripts:
         try:
             data = json.loads(script.string)
-            # Create a sorted string representation to compare duplicates
-            data_str = json.dumps(data, sort_keys=True)
-            if data_str not in unique_data_set:
-                unique_data_set.add(data_str)
-                collected_data.append(data)
-                print("New data found:")
-                print(json.dumps(data, indent=2))
+            json_ld_list.append(data)
         except Exception as e:
             print("Error parsing JSON from a script tag:", e)
-    
+    if json_ld_list:
+        scraped_item['json_ld'] = json_ld_list
+
+    # 2. Extract the description text from the designated div
+    description_div = soup.find("div", class_="listing-description-text")
+    if description_div:
+        description = description_div.get_text(strip=True)
+        scraped_item['description'] = description
+
+    # 3. Extract inline JSON data (e.g. __NUXT_DATA__)
+    nuxt_data_script = soup.find("script", id="__NUXT_DATA__")
+    if nuxt_data_script:
+        try:
+            nuxt_data = json.loads(nuxt_data_script.string)
+            scraped_item['nuxt_data'] = nuxt_data
+        except Exception as e:
+            print("Error parsing __NUXT_DATA__:", e)
+
+    # Only add this iteration's data if there's any new content.
+    if scraped_item:
+        # Use a sorted JSON string representation to check for uniqueness.
+        item_str = json.dumps(scraped_item, sort_keys=True)
+        if item_str not in unique_data_set:
+            unique_data_set.add(item_str)
+            collected_data.append(scraped_item)
+            print("New data found:")
+            print(json.dumps(scraped_item, indent=2))
+
     # Save the current unique data to a JSON file
     with open(save_path, "w") as json_file:
         json.dump(collected_data, json_file, indent=2)
