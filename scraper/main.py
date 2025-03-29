@@ -8,8 +8,8 @@ import time
 # Set up Firefox options and specify binary & GeckoDriver paths
 options = Options()
 options.headless = False  # Set to False to see the browser
-options.binary_location = r""
-service = Service(r"")
+options.binary_location =
+service = Service()
 
 driver = webdriver.Firefox(service=service, options=options)
 driver.get("https://www.funda.nl/detail/koop/den-haag/appartement-zodiakplein-69/43885981/")
@@ -45,6 +45,10 @@ while driver.window_handles:
     if description_div:
         description = description_div.get_text(strip=True)
         scraped_item['description'] = description
+        # Debug: Print the length of the description and write it to a file.
+        print("Description length:", len(description))
+        with open("description.txt", "w", encoding="utf-8") as f:
+            f.write(description)
 
     # 3. Extract inline JSON data (e.g. __NUXT_DATA__)
     nuxt_data_script = soup.find("script", id="__NUXT_DATA__")
@@ -63,10 +67,11 @@ while driver.window_handles:
             unique_data_set.add(item_str)
             collected_data.append(scraped_item)
             print("New data found:")
+            # Print the entire JSON object (may be truncated in some consoles)
             print(json.dumps(scraped_item, indent=2))
 
     # Save the current unique data to a JSON file
-    with open(save_path, "w") as json_file:
+    with open(save_path, "w", encoding="utf-8") as json_file:
         json.dump(collected_data, json_file, indent=2)
     
     time.sleep(5)  # Delay between iterations to reduce load
